@@ -1,55 +1,53 @@
 # Диаграмма Ганта для планирования исследований ------------------------
 ## Код: https://insileco.github.io/2017/09/20/gantt-charts-in-r/
-## Заголовок диаграммы на строке 141
+## Заголовок диаграммы на строке 149
 
 # Пакеты ---------------------------------------------------------------
-library(openxlsx)
-# library(lubridate)
-library(kableExtra)
-library(RColorBrewer)
+library(lubridate)
 library(dplyr)
 
-# Данные ---------------------------------------------------------------
-df <- read.xlsx("~/data/research_plan.xlsx", detectDates = TRUE)
-# Преобразование дат
-df$startDate <- as.Date(df$startDate, origin = "1899-12-30")
-df$dueDate <- as.Date(df$dueDate, origin = "1899-12-30")
+research.plan <- read.csv2("~/data/research_plan.csv", 
+                           stringsAsFactors = FALSE, 
+                           fileEncoding = "UTF-8")
 
-# Функция для отрисовки графика ----------------------------------------
+# Функция для построения графика ---------------------------------------
 ganttR <- function(df, type = 'all') {
+  df <- df %>% 
+    mutate(startDate = dmy(startDate),
+           dueDate = dmy(dueDate)) %>% 
+    arrange(startDate)
+  helper <- data.frame(milestone = unique(df$milestones))
+  helper$index <- rownames(helper)
+  df$index <- as.numeric(helper$index[match(df$milestones, 
+                                            helper$milestone)])
+  # Преобразование таблицы
   nameMilestones <- unique(df$milestones)
   nMilestones <- length(nameMilestones)
-  rbPal <- colorRampPalette(c("#3fb3b2", "#ffdd55", "#c7254e", 
-                              "#1b95e0", "#8555b4"))
-  cols <- data.frame(milestones = nameMilestones,
-                     col = rbPal(nMilestones),
-                     stringsAsFactors = FALSE)
-  cols <- cols[1:nMilestones, ]
-  # Преобразование таблицы
   df <- df %>%
-    group_by(milestones, num) %>% # группировка по проектам и номеру
+    group_by(milestones, index) %>% # группировка по проектам и номеру
     summarise(startDate = min(startDate), # начало и ->
               dueDate = max(dueDate)) %>% # -> конец каждого проекта 
     mutate(tasks = milestones, status = 'M') %>% # проект как задача
     bind_rows(df) %>% # объединение проектов с задачами
+    filter(is.na(tasks) == FALSE) %>% 
     # ширина линий в графике
     mutate(lwd = ifelse(milestones == tasks, 8, 6)) %>% 
-    left_join(cols, by = 'milestones') %>% # цвета
     # цвета в соответствии со статусом
-    mutate(col = ifelse(status == 'I', paste0(col,'BB'), col)) %>% 
-    mutate(col = ifelse(status == 'C', paste0(col,'33'), col)) %>% 
-    mutate(cex = ifelse(status == 'M', 0.8, 0.75)) %>%
+    mutate(col =  case_when(
+      status == "P" ~ "firebrick4",
+      status == "N" ~ "darkslateblue",
+      status == "O" ~ "yellowgreen",
+      status == "C" ~ "forestgreen",
+      status == "M" ~ "slategray"
+    )) %>% 
+    mutate(cex = ifelse(status == 'M', 0.7, 0.6)) %>%
     mutate(adj = ifelse(status == 'M', 0, 1)) %>%
     mutate(line = ifelse(status == 'M', 8, 0.5)) %>%
     mutate(font = ifelse(status == 'M', 2, 1)) %>%
     # сортировка по номеру проекта
-    arrange(desc(num),desc(startDate),dueDate) 
-  
+    arrange(desc(index), desc(startDate), dueDate) 
   # временной отрезок для которого создаётся диаграмма
   dateRange <- c(min(df$startDate), max(df$dueDate))
-  
-  # даты для настройки нижней оси (семидневные интервалы)
-  # dateSeq <- seq.Date(dateRange[1], dateRange[2], by = 7)
   forced_start <- as.Date(paste0(format(dateRange[1], "%Y-%m"), "-01"))
   yEnd <- format(dateRange[2], "%Y")
   mEnd <- as.numeric(format(dateRange[2], "%m")) + 1
@@ -64,13 +62,13 @@ ganttR <- function(df, type = 'all') {
   # построение диаграммы: проекты + задачи
   if(type == 'all') {
     nLines <- nrow(df)
-    par(family = "PT Sans", mar = c(6,9,2,0))
+    par(family = "PT Sans", mar = c(3, 9, .5, 0))
     plot(x = 1, y = 1, col = 'transparent', 
-         xlim = c(min(dateSeq), max(dateSeq)), ylim = c(1,nLines), 
+         xlim = c(min(dateSeq) - 7.5, max(dateSeq) + 7.5), ylim = c(1, nLines), 
          bty = "n", ann = FALSE, xaxt = "n", yaxt = "n", type = "n",
          bg = 'grey')
     mtext(lab[-length(lab)], side = 1, at = dateSeq[-length(lab)], 
-          las = 0, line = 1.5, cex = .75, adj = 0)
+          las = 0, line = .75, cex = .75, adj = 0)
     axis(1, dateSeq, labels = F, line = 0.5)
     extra <- nLines * 0.03
     for(i in seq(1, length(dateSeq - 1), by = 2)) {
@@ -92,12 +90,23 @@ ganttR <- function(df, type = 'all') {
             line = df$line[i],
             cex = df$cex[i],
             font = df$font[i])
+      text(x = min(df$startDate) - 20,
+           y = i,
+           labels = df$exec[i],
+           adj = 0,
+           cex = df$cex[i],
+           font = df$font[i])
+      text(x = df$dueDate[i] + 1.5,
+           y = i,
+           labels = df$result[i],
+           adj = 0,
+           cex = df$cex[i],
+           font = df$font[i])
     }
-    
     # вертикальная линия для сегодняшней даты
-    abline(h = which(df$status == 'M') + 0.5, col = '#634d42')
+    abline(h = which(df$status == 'M') + 0.5, col = "paleturquoise4", lwd = .5)
     abline(v = as.Date(format(Sys.time(), format = "%Y-%m-%d")), 
-           lwd = 1, lty = 2)
+           lwd = .5, lty = 2)
   }
   
   # построение диаграммы: только проекты
@@ -134,19 +143,22 @@ ganttR <- function(df, type = 'all') {
             font = df$font[ms[i]])
     }
     abline(v = as.Date(format(Sys.time(), format = "%Y-%m-%d")), 
-           lwd = 1, lty = 2)
+           lwd = .5, lty = 2)
   }
-  par(cex.main = 1, cex.sub = .75, adj = .9, family = "PT Sans")
-  title(main = "План-график исследований (2020 год)", 
+  par(cex.main = .85, cex.sub = .75, adj = .95, family = "PT Sans")
+  title(main = "План исследований (2020 год)", line = -.95,
         sub = paste0("Обновлено ", 
                      as.Date(format(Sys.time(), format = "%Y-%m-%d"))))
 }
 
-ganttR(df)
-
-# ganttR(df, "milestones")
+ganttR(research.plan)
+ganttR(research.plan, "milestones")
 
 # Сохранение -----------------------------------------------------------
-# tiff("research_plan.tiff", width = 297, height = 210, units = 'mm', res = 300)
-# ganttR(df)
+# tiff("research_plan.tiff", width = 277, height = 190, units = 'mm', res = 300)
+# ganttR(research.plan)
+# dev.off()
+# 
+# tiff("research_plan_short.tiff", width = 277, height = 190, units = 'mm', res = 300)
+# ganttR(research.plan, "milestones")
 # dev.off()
