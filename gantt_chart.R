@@ -21,8 +21,6 @@ ganttR <- function(df, type = 'all') {
   df$index <- as.numeric(helper$index[match(df$milestones, 
                                             helper$milestone)])
   # Преобразование таблицы
-  nameMilestones <- unique(df$milestones)
-  nMilestones <- length(nameMilestones)
   df <- df %>%
     group_by(milestones, index) %>% # группировка по проектам и номеру
     summarise(startDate = min(startDate), # начало и ->
@@ -31,7 +29,7 @@ ganttR <- function(df, type = 'all') {
     bind_rows(df) %>% # объединение проектов с задачами
     filter(is.na(tasks) == FALSE) %>% 
     # ширина линий в графике
-    mutate(lwd = ifelse(milestones == tasks, 8, 6)) %>% 
+    mutate(lwd = ifelse(milestones == tasks, 6.5, 4.5)) %>% 
     # цвета в соответствии со статусом
     mutate(col =  case_when(
       status == "P" ~ "firebrick4",
@@ -69,7 +67,7 @@ ganttR <- function(df, type = 'all') {
          bg = 'grey')
     mtext(lab[-length(lab)], side = 1, at = dateSeq[-length(lab)], 
           las = 0, line = .75, cex = .75, adj = 0)
-    axis(1, dateSeq, labels = F, line = 0.5)
+    axis(1, dateSeq, labels = F, line = 1, lwd = .5, tck = -.005)
     extra <- nLines * 0.03
     for(i in seq(1, length(dateSeq - 1), by = 2)) {
       polygon(x = c(dateSeq[i], dateSeq[i + 1], dateSeq[i + 1], dateSeq[i]),
@@ -111,7 +109,7 @@ ganttR <- function(df, type = 'all') {
   
   # построение диаграммы: только проекты
   if(type == 'milestones') {
-    nLines <- nMilestones
+    nLines <- length(unique(df$milestones))
     ms <- which(df$status == 'M')
     par(family = "PT Sans", mar = c(6, 9, 2, 0))
     plot(x = 1, y = 1, col = 'transparent', 
@@ -120,7 +118,7 @@ ganttR <- function(df, type = 'all') {
          yaxt = "n", type = "n", bg = 'grey')
     mtext(lab[-length(lab)], side = 1, at = dateSeq[-length(lab)], 
           las = 0, line = 1.5, cex = .75, adj = 0)
-    axis(1, dateSeq, labels = F, line = .5)
+    axis(1, dateSeq, labels = F, line = 1, lwd = .5, tck = -.005)
     extra <- nLines * 0.03
     for(i in seq(1,length(dateSeq - 1), by = 2)) {
       polygon(x = c(dateSeq[i], dateSeq[i + 1], dateSeq[i + 1], dateSeq[i]),
@@ -152,7 +150,7 @@ ganttR <- function(df, type = 'all') {
 }
 
 ganttR(research.plan)
-ganttR(research.plan, "milestones")
+# ganttR(research.plan, "milestones")
 
 # Сохранение -----------------------------------------------------------
 # tiff("research_plan.tiff", width = 277, height = 190, units = 'mm', res = 300)
