@@ -1,0 +1,26 @@
+Sub MGT_nbsp()
+'
+' MGT_nbsp Макрос
+' Расстановка неразрывных пробелов после предлогов и чисел
+'
+
+Dim s$, n&
+  Selection.HomeKey unit:=wdStory
+  Do
+    Selection.EndKey unit:=wdLine
+    If Selection.End + 1 >= ActiveDocument.Range.End Then Exit Do
+    Selection.MoveLeft unit:=wdWord, Count:=1, Extend:=wdExtend
+    s = Selection.Text
+    If s = vbCr Then  'пустой абзац, выделение сместилось на строку вверх!
+      Selection.MoveDown unit:=wdLine, Count:=1
+    ElseIf LCase$(Right$(s, 2)) Like "[a-zа-яё0-9] " And (Len(s) = 2 Or Len(s) = 3 Or Len(s) = 4) Then
+      Selection.EndKey unit:=wdLine
+      Selection.MoveLeft unit:=wdCharacter, Count:=1, Extend:=wdExtend
+      Selection.TypeText Text:=" "  'неразрывный пробел; происходит переход на сл. строку
+      n = n + 1
+      Selection.MoveUp unit:=wdLine, Count:=1
+    End If
+    Selection.MoveDown unit:=wdLine, Count:=1
+  Loop
+MsgBox "Выполнено замен: " & n, vbInformation
+End Sub
