@@ -16,7 +16,7 @@ Dim s$, n&
     ElseIf LCase$(Right$(s, 2)) Like "[a-zа-яё0-9] " And (Len(s) = 2 Or Len(s) = 3 Or Len(s) = 4) Then
       Selection.EndKey unit:=wdLine
       Selection.MoveLeft unit:=wdCharacter, Count:=1, Extend:=wdExtend
-      Selection.TypeText Text:=" "  'неразрывный пробел; происходит переход на сл. строку
+      Selection.TypeText Text:=ChrW(160)  'неразрывный пробел; происходит переход на сл. строку
       n = n + 1
       Selection.MoveUp unit:=wdLine, Count:=1
     End If
